@@ -140,6 +140,8 @@ def format_value(row, key, options):
     value = row.get(key)
     if value is None:
         return "—"
+    if key == "status":
+        return f'<span class="status {e(value)}">{e(options[key][value])}</span>'
     if key in options:
         return e(options[key].get(str(value), value))
     if key in ("visit_date", "opened_on", "updated_on", "recorded_on", "issued_on", "paid_on"):
@@ -148,8 +150,6 @@ def format_value(row, key, options):
         return e(str(value)[:5])
     if key in ("price", "total", "base_price"):
         return e(f"{value:,.2f}".replace(",", " ").replace(".", ",") + " ₽")
-    if key == "status":
-        return f'<span class="status {e(value)}">{e((APPOINTMENT_STATUS | INVOICE_STATUS).get(value, value))}</span>'
     return e(value)
 
 
@@ -185,7 +185,7 @@ def get_table(table):
 def render_list(table, rows, lookups, columns):
     _, fields, _ = TABLES[table]
     labels = {key: label for key, label, _, _ in fields} | {"total": "К оплате"}
-    options = {key: kind for key, _, kind, _ in fields if isinstance(kind, dict) and key != "status"} | lookups
+    options = {key: kind for key, _, kind, _ in fields if isinstance(kind, dict)} | lookups
     headers = "".join(f"<th>{e(labels[key])}</th>" for key in columns)
     body = []
     for row in rows:
