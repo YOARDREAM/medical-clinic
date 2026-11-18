@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: clinic
+      POSTGRES_USER: clinic_user
+      POSTGRES_PASSWORD: clinic_demo_local
+    volumes:
+      - clinic_pgdata:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./sql/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          pg_isready -h 127.0.0.1 -U clinic_user -d clinic &&
+          PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U clinic_user
+          -d clinic -Atqc "SELECT to_regclass('public.invoice_totals') IS NOT NULL" | grep -qx t
+      interval: 3s
+      timeout: 4s
+      retries: 30
+  web:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://clinic_user:clinic_demo_local@db:5432/clinic
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${CLINIC_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/', timeout=3).close()"]
+      interval: 3s
+      timeout: 4s
+      retries: 20
+volumes:
+  clinic_pgdata:
